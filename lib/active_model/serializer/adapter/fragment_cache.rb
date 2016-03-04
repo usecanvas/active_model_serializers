@@ -22,7 +22,7 @@ module ActiveModel
 
           # Instantiate both serializers
           cached_serializer     = serializers[:cached].constantize.new(serializer.object)
-          non_cached_serializer = serializers[:non_cached].constantize.new(serializer.object)
+          non_cached_serializer = serializers[:non_cached].constantize.new(serializer.object, scope: serializer.scope)
 
           cached_adapter     = adapter.class.new(cached_serializer, instance_options)
           non_cached_adapter = adapter.class.new(non_cached_serializer, instance_options)
@@ -58,7 +58,7 @@ module ActiveModel
           end
 
           non_cached_attributes.each do |attribute|
-            options = serializer.class._attributes_keys[attribute]
+            options = serializer.class._attributes_data[attribute].options
             options ||= {}
             # Add non-cached attributes to non-cached Serializer
             serializers[:non_cached].constantize.attribute(attribute, options)
@@ -87,7 +87,15 @@ module ActiveModel
           non_cached = "#{to_valid_const_name(name)}NonCachedSerializer"
 
           Object.const_set cached, Class.new(ActiveModel::Serializer) unless Object.const_defined?(cached)
-          Object.const_set non_cached, Class.new(ActiveModel::Serializer) unless Object.const_defined?(non_cached)
+          Object.const_set non_cached, Class.new(serializer.class) unless Object.const_defined?(non_cached)
+
+          non_cached.constantize.class_eval do
+            self._cache = nil
+            self._cache_key = nil
+            self._cache_only = nil
+            self._cache_except = nil
+            self._cache_options = nil
+          end
 
           klass._cache_options ||= {}
           klass._cache_options[:key] = klass._cache_key if klass._cache_key
